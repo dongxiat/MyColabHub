@@ -6,6 +6,7 @@ bitsandbytes>0.37.0
 vinorm
 cached_path
 huggingface_hub
+spaces
 gradio
 accelerate>=0.33.0
 click
