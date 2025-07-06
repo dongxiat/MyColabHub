@@ -29,3 +29,7 @@ transformers_stream_generator
 vocos
 wandb
 x_transformers>=1.31.14
+viphoneme
+underthesea
+eng_to_ipa
+phonemizer
