@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Giọng Nữ Miền Trung Erax (Trẻ - Noise)",
+    "audio_path": "EraX-Smile-Female_sample01.wav",
+    "ref_text": "Thậm chí không ăn thì cũng có cảm giác rất là cứng bụng, chủ yếu là cái phần rốn...trở lên. Em có cảm giác khó thở, và ngủ cũng không ngon, thường bị ợ hơi rất là nhiều"
+  },
+  {
+    "name": "Giọng Nữ Miền Trung Erax (Trẻ - Clean)",
+    "audio_path": "EraX-Smile-Female_sample01(clean).wav",
+    "ref_text": "Thậm chí không ăn thì cũng có cảm giác rất là cứng bụng, chủ yếu là cái phần rốn...trở lên. Em có cảm giác khó thở, và ngủ cũng không ngon, thường bị ợ hơi rất là nhiều"
+  },
+  {
+    "name": "Giọng Nữ Miền Nam Erax (Trung Niên)",
+    "audio_path": "EraX-Smile-Unisex_sample01.wav",
+    "ref_text": "Ai đã đến Hàng Dương, đều không thể cầm lòng về những nấm mộ chen nhau, nhấp nhô trải khắp một vùng đồi. Những nấm mộ có tên và không tên, nhưng nấm mộ lấp ló trong lùm cây, bụi cỏ."
+  },
+  {
+    "name": "Giọng Nam Miền Nam Erax (Trẻ)",
+    "audio_path": "EraX-Smile-Unisex_sample02.wav",
+    "ref_text": "Người người hô hào thay đổi phương pháp giảng dạy. Bộ giáo dục và đào tạo Việt Nam không thiếu những dự án nhằm thay đổi diện mạo giáo dục nước nhà. Nhưng trong khi những thành quả đổi mới còn chưa kịp thu về, thì những ví dụ điển hình về bước lùi của giáo dục ngày càng hiện rõ."
+  }
+]
