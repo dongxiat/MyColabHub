@@ -15,6 +15,26 @@
     "ref_text": "Ai đã đến Hàng Dương, đều không thể cầm lòng về những nấm mộ chen nhau, nhấp nhô trải khắp một vùng đồi. Những nấm mộ có tên và không tên, nhưng nấm mộ lấp ló trong lùm cây, bụi cỏ."
   },
   {
+    "name": "Giọng Nữ Miền Bắc Ngọc Ly Cute Thanh Hóa (Trẻ - Noise)",
+    "audio_path": "NgocLyCute18tThanhHoa.wav",
+    "ref_text": "Bảo không là không chơi rên rồi, ví dụ như nhá. Ví dụ em ở với người khác thì em rên được, còn ví dụ em ở một mình thì làm sao mà em rên được, đúng hông?. Rồi cái tự dưng bắt người ta tự làm tự rên. Ông này khùng nữa"
+  },
+  {
+    "name": "Giọng Nữ Miền Bắc Ngọc Ly Cute Thanh Hóa (Trẻ - Clean)",
+    "audio_path": "NgocLyCute18tThanhHoa(clean).wav",
+    "ref_text": "Bảo không là không chơi rên rồi, ví dụ như nhá. Ví dụ em ở với người khác thì em rên được, còn ví dụ em ở một mình thì làm sao mà em rên được, đúng hông?. Rồi cái tự dưng bắt người ta tự làm tự rên. Ông này khùng nữa"
+  },
+  {
+    "name": "Giọng Nữ Miền Bắc Quỳnh Bigo Thanh Hóa (Trẻ - Noise)",
+    "audio_path": "QuynhThuDuc19tBigo.wav",
+    "ref_text": "Anh đi ăn người ta cho anh nợ chắc?. Ở đấy mà nợ với không nợ. Làm đĩ đâu mà đòi nợ với không nợ. Đi làm đĩ nó cũng phải đòi tiền trước nó mới cho anh làm, còn không thì...làm xong nó mới trả chứ ai cho nợ, nợ cái quần què"
+  },
+  {
+    "name": "Giọng Nữ Miền Bắc Quỳnh Bigo Thanh Hóa (Trẻ - Clean)",
+    "audio_path": "QuynhThuDuc19tBigo(clean).wav",
+    "ref_text": "Anh đi ăn người ta cho anh nợ chắc?. Ở đấy mà nợ với không nợ. Làm đĩ đâu mà đòi nợ với không nợ. Đi làm đĩ nó cũng phải đòi tiền trước nó mới cho anh làm, còn không thì...làm xong nó mới trả chứ ai cho nợ, nợ cái quần què"
+  },
+  {
     "name": "Giọng Nam Miền Nam Erax (Trẻ)",
     "audio_path": "EraX-Smile-Unisex_sample02.wav",
     "ref_text": "Người người hô hào thay đổi phương pháp giảng dạy. Bộ giáo dục và đào tạo Việt Nam không thiếu những dự án nhằm thay đổi diện mạo giáo dục nước nhà. Nhưng trong khi những thành quả đổi mới còn chưa kịp thu về, thì những ví dụ điển hình về bước lùi của giáo dục ngày càng hiện rõ."
