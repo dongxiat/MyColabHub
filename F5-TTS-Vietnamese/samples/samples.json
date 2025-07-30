@@ -44,6 +44,11 @@
     "audio_path": "NhuYTeenHG(clean).wav",
     "ref_text": "Vậy chú chơi freefire với em đi rồi em, em em trao đổi cho chú. Thì trao đổi thôi nghe hổng có đòi hỏi...đừng đừng đừng có ra giá nữa á"
   },
+    {
+    "name": "Giọng Nữ Miền Nam Thời Sự (Trung Niên - Noise)",
+    "audio_path": "GiongNu-ThoiSu-TrungNien-MienNam(clean).wav",
+    "ref_text": "Hạ tầng giao thông sau thảm họa hứng chịu thiệt hại nặng nề"
+  },
   {
     "name": "Giọng Nam Miền Nam Erax (Trẻ)",
     "audio_path": "EraX-Smile-Unisex_sample02.wav",
