@@ -5,8 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "triton @ file:///${PROJECT_ROOT}/wheels/triton-2.1.0-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
-    "triton==2.1.0 ; sys_platform == 'linux'",
+    "triton==2.1.0",
     "deepspeed>=0.14.4",
     "ipython>=9.2.0",
     "celluloid>=0.2.0",
@@ -19,9 +18,9 @@ dependencies = [
     "rich>=13.7.0",
     "scipy>=1.11.4",
     "soundfile>=0.12.1",
-    "torchvision>=0.16.1",
-    "torchaudio>=2.1.1",
-    "torch>=2.1.1",
+    "torch>=2.1.1",	
+	"torchaudio>=2.1.1",
+	"torchvision>=0.16.1",
     "tqdm>=4.66.1",
     "resampy>=0.4.2",
     "tabulate>=0.8.10",
@@ -40,6 +39,8 @@ torch = { index = "pytorch-cu118" }
 torchvision = { index = "pytorch-cu118" }
 torchaudio = { index = "pytorch-cu118" }
 
+
+# deepspeed = { path = "./wheels/deepspeed-0.11.2+cuda118-cp311-cp311-win_amd64.whl" }
 triton = { path = "./wheels/triton-2.1.0-cp311-cp311-win_amd64.whl" }
 
 [tool.setuptools.packages.find]
