@@ -6,9 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     # --- Dependencies cho các nền tảng khác nhau ---
-    # Quan trọng: Mỗi dòng dependency phải là một chuỗi duy nhất, không ngắt dòng.
-    "deepspeed @ https://github.com/daswer123/deepspeed-windows/releases/download/13.1/deepspeed-0.13.1+cu121-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
-    "triton @ https://huggingface.co/madbuda/triton-windows-builds/resolve/main/triton-2.1.0-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
+    "deepspeed==0.13.1+1d35db7 @ https://github.com/daswer123/deepspeed-windows/releases/download/13.1/deepspeed-0.13.1+cu121-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
+    "triton==2.1.0 @ https://huggingface.co/madbuda/triton-windows-builds/resolve/main/triton-2.1.0-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
     
     # TRÊN LINUX: Cài từ PyPI
     "deepspeed>=0.13.1,<=0.14.0 ; sys_platform == 'linux'",
@@ -43,7 +42,6 @@ url = "https://download.pytorch.org/whl/cu121"
 explicit = true
 
 [tool.uv.sources]
-# Quan trọng: Xóa tất cả các khai báo nguồn cục bộ ở đây
 torch = { index = "pytorch-cu121" }
 torchvision = { index = "pytorch-cu121" }
 torchaudio = { index = "pytorch-cu121" }

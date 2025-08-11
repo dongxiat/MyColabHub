@@ -8,6 +8,7 @@ Download wheels, place them in ```wheels``` folder if auto install not work:
 Install dependencies:
 ```
 pip install uv
+uv sync
 uv pip install -e . --no-deps
 ```
 Run gradio UI:
