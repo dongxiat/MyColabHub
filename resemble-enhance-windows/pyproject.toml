@@ -1,26 +1,34 @@
 [project]
 name = "resemble-enhance-windows"
 version = "0.1.0"
-description = "Add your description here"
+description = "UPDATE TO |PYTHON 3.11|CUDA 121|DEEPSPEED 0.14.0(LINUX)|0.13.1(WINDOWS)|TRITON 2.1.0"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "triton==2.1.0",
-    "deepspeed>=0.14.4",
+    # --- Dependencies cho các nền tảng khác nhau ---
+    # Quan trọng: Mỗi dòng dependency phải là một chuỗi duy nhất, không ngắt dòng.
+    "deepspeed @ https://github.com/daswer123/deepspeed-windows/releases/download/13.1/deepspeed-0.13.1+cu121-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
+    "triton @ https://huggingface.co/madbuda/triton-windows-builds/resolve/main/triton-2.1.0-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
+    
+    # TRÊN LINUX: Cài từ PyPI
+    "deepspeed>=0.13.1,<=0.14.0 ; sys_platform == 'linux'",
+    "triton==2.1.0 ; sys_platform == 'linux'",
+    
+    # --- Các dependency chung ---
     "ipython>=9.2.0",
     "celluloid>=0.2.0",
     "librosa>=0.10.1",
     "matplotlib>=3.8.1",
     "numpy>=1.26.2,<2.0",
     "omegaconf>=2.3.0",
-    "pandas>=2.1.3",
+    "pandas==2.1.3",
     "ptflops>=0.7.1.2",
     "rich>=13.7.0",
-    "scipy>=1.11.4",
+    "scipy==1.11.4",
     "soundfile>=0.12.1",
-    "torch>=2.1.1",	
-	"torchaudio>=2.1.1",
-	"torchvision>=0.16.1",
+    "torch==2.1.2",
+    "torchaudio==2.1.2",
+    "torchvision==0.16.2",
     "tqdm>=4.66.1",
     "resampy>=0.4.2",
     "tabulate>=0.8.10",
@@ -30,21 +38,15 @@ dependencies = [
 ]
 
 [[tool.uv.index]]
-name = "pytorch-cu118"
-url = "https://download.pytorch.org/whl/cu118"
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
 explicit = true
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu118" }
-torchvision = { index = "pytorch-cu118" }
-torchaudio = { index = "pytorch-cu118" }
-
-
-# deepspeed = { path = "./wheels/deepspeed-0.11.2+cuda118-cp311-cp311-win_amd64.whl" }
-triton = { path = "./wheels/triton-2.1.0-cp311-cp311-win_amd64.whl" }
+# Quan trọng: Xóa tất cả các khai báo nguồn cục bộ ở đây
+torch = { index = "pytorch-cu121" }
+torchvision = { index = "pytorch-cu121" }
+torchaudio = { index = "pytorch-cu121" }
 
 [tool.setuptools.packages.find]
 include = ["resemble_enhance*"]
-
-# https://github.com/daswer123/xtts-webui/releases/download/deepspeed/deepspeed-0.11.2+cuda118-cp311-cp311-win_amd64.whl
-# https://huggingface.co/madbuda/triton-windows-builds/resolve/main/triton-2.1.0-cp311-cp311-win_amd64.whl?download=true
