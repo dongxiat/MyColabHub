@@ -22,7 +22,8 @@ def clear_gpu_cash():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-def _fn(path, solver, nfe, tau, chunk_seconds, chunks_overlap, denoising):
+# --- THAY ĐỔI 1: Xóa `chunk_seconds` và `chunks_overlap` khỏi chữ ký hàm ---
+def _fn(path, solver, nfe, tau, denoising):
     """Processes a single audio file."""
     if path is None:
         return None, None, "Please provide an input audio file."
@@ -37,7 +38,17 @@ def _fn(path, solver, nfe, tau, chunk_seconds, chunks_overlap, denoising):
 
         # Thực hiện enhance và denoise
         wav_denoised, new_sr_denoised = denoise(dwav, sr, device)
-        wav_enhanced, new_sr_enhanced = enhance(dwav=dwav, sr=sr, device=device, nfe=nfe, chunk_seconds=chunk_seconds, chunks_overlap=chunks_overlap, solver=solver, lambd=lambd, tau=tau)
+        
+        # Lời gọi hàm enhance giờ đây đã rất gọn gàng, không còn các tham số thừa
+        wav_enhanced, new_sr_enhanced = enhance(
+            dwav=dwav, 
+            sr=sr, 
+            device=device, 
+            nfe=nfe, 
+            solver=solver, 
+            lambd=lambd, 
+            tau=tau
+        )
 
         # Chuyển đổi sang numpy array để Gradio có thể hiển thị
         wav_denoised_np = wav_denoised.cpu().numpy()
@@ -115,8 +126,7 @@ def main():
                     solver = gr.Dropdown(choices=["Midpoint", "RK4", "Euler"], value="Midpoint", label="CFM ODE Solver")
                     nfe = gr.Slider(minimum=1, maximum=128, value=64, step=1, label="CFM Number of Function Evaluations")
                     tau = gr.Slider(minimum=0, maximum=1, value=0.5, step=0.01, label="CFM Prior Temperature")
-                    chunk_seconds = gr.Slider(minimum=1, maximum=40, value=10, step=1, label="Chunk seconds (more seconds more VRAM usage)")
-                    chunks_overlap = gr.Slider(minimum=0, maximum=5, value=1, step=0.5, label="Chunk overlap")
+                    # --- THAY ĐỔI 2: Xóa 2 thanh trượt chunking ở đây ---
                 
                 process_btn = gr.Button("Start Processing", variant="primary")
 
@@ -125,9 +135,10 @@ def main():
                 output_enhanced = gr.Audio(label="Output Enhanced Audio")
                 status_label_single = gr.Label(label="Status")
 
+        # --- THAY ĐỔI 3: Xóa `chunk_seconds` và `chunks_overlap` khỏi danh sách `inputs` ---
         process_btn.click(
             fn=_fn,
-            inputs=[input_audio, solver, nfe, tau, chunk_seconds, chunks_overlap, denoise_before_enhance],
+            inputs=[input_audio, solver, nfe, tau, denoise_before_enhance],
             outputs=[output_denoised, output_enhanced, status_label_single],
         )
 
