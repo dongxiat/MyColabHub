@@ -9,7 +9,7 @@ dependencies = [
     "triton @ https://huggingface.co/madbuda/triton-windows-builds/resolve/main/triton-2.1.0-cp311-cp311-win_amd64.whl ; sys_platform == 'win32'",
     
     # TRÊN LINUX: Cài từ PyPI
-    "deepspeed>=0.13.1,<=0.14.0 ; sys_platform == 'linux'",
+    "deepspeed>=0.13.2,<=0.14.0 ; sys_platform == 'linux'",
     "triton==2.1.0 ; sys_platform == 'linux'",
     
     # --- Các dependency chung ---
@@ -34,6 +34,9 @@ dependencies = [
     "loguru>=0.7.3",
     "numba>=0.58.0",
 ]
+
+[project.scripts]
+resemble-enhance = "resemble_enhance.enhancer.__main__:main"
 
 [[tool.uv.index]]
 name = "pytorch-cu121"
