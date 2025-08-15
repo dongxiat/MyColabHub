@@ -1,11 +1,14 @@
+# app.py
+
 import gradio as gr
 import torch
 import torchaudio
 import gc
 import os
 import subprocess
+from pathlib import Path
 
-# Cố gắng import resemble_enhance, nếu không được thì in hướng dẫn
+# ... (các hàm import, _fn, clear_gpu_cash giữ nguyên) ...
 try:
     from resemble_enhance.enhancer.inference import denoise, enhance
 except ImportError:
@@ -22,48 +25,31 @@ def clear_gpu_cash():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-# --- THAY ĐỔI 1: Xóa `chunk_seconds` và `chunks_overlap` khỏi chữ ký hàm ---
 def _fn(path, solver, nfe, tau, denoising):
     """Processes a single audio file."""
     if path is None:
         return None, None, "Please provide an input audio file."
-
     try:
         solver = solver.lower()
         nfe = int(nfe)
         lambd = 0.9 if denoising else 0.1
-
         dwav, sr = torchaudio.load(path)
         dwav = dwav.mean(dim=0)
-
-        # Thực hiện enhance và denoise
         wav_denoised, new_sr_denoised = denoise(dwav, sr, device)
-        
-        # Lời gọi hàm enhance giờ đây đã rất gọn gàng, không còn các tham số thừa
         wav_enhanced, new_sr_enhanced = enhance(
-            dwav=dwav, 
-            sr=sr, 
-            device=device, 
-            nfe=nfe, 
-            solver=solver, 
-            lambd=lambd, 
-            tau=tau
+            dwav=dwav, sr=sr, device=device, nfe=nfe, solver=solver, lambd=lambd, tau=tau
         )
-
-        # Chuyển đổi sang numpy array để Gradio có thể hiển thị
         wav_denoised_np = wav_denoised.cpu().numpy()
         wav_enhanced_np = wav_enhanced.cpu().numpy()
-
         clear_gpu_cash()
-        
         return (new_sr_denoised, wav_denoised_np), (new_sr_enhanced, wav_enhanced_np), "Processing successful!"
     except Exception as e:
         clear_gpu_cash()
         return None, None, f"An error occurred: {str(e)}"
 
-
+# --- SỬA LẠI HÀM NÀY ---
 def process_folder(in_dir, out_dir, denoise_only):
-    """Processes a batch of files in a folder using the command-line tool."""
+    """Processes a batch of files by calling the installed module via 'uv run'."""
     if not in_dir or not out_dir:
         return "Input and Output directories cannot be empty."
     
@@ -75,18 +61,22 @@ def process_folder(in_dir, out_dir, denoise_only):
     try:
         yield f"Starting to process folder '{in_dir}'..."
         
-        command = [
-            "resemble_enhance",
+        # 1. Xây dựng lệnh gốc, gọi trực tiếp module qua `python -m`
+        base_command = [
+            "python", "-m", "resemble_enhance.enhancer",
             in_dir,
             out_dir,
             "--device", device,
         ]
 
         if denoise_only:
-            command.append("--denoise-only")
+            base_command.append("--denoise-only")
         
-        # Chạy lệnh bên trong môi trường ảo của uv
-        process_command = ["uv", "run", "--"] + command
+        # 2. Bọc lệnh gốc bằng `uv run --`
+        # Lệnh này sẽ chạy bên trong môi trường ảo đã được cài đặt.
+        process_command = ["uv", "run", "--"] + base_command
+
+        # Chạy tiến trình con
         process = subprocess.Popen(process_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8')
         
         full_log = ""
@@ -106,13 +96,12 @@ def process_folder(in_dir, out_dir, denoise_only):
         else:
             yield full_log + f"\n\nAn error occurred during batch processing."
 
-    except FileNotFoundError:
-        yield "Error: 'uv' or 'resemble_enhance' command not found."
     except Exception as e:
         yield f"An unexpected error occurred: {str(e)}"
-
+# -------------------------
 
 def main():
+    # ... (phần giao diện của bạn giữ nguyên không đổi) ...
     # Giao diện cho xử lý từng file
     with gr.Blocks() as single_file_interface:
         gr.Markdown("## Resemble Enhance - Single File")
@@ -121,54 +110,31 @@ def main():
             with gr.Column():
                 input_audio = gr.Audio(type="filepath", label="Input Audio")
                 denoise_before_enhance = gr.Checkbox(value=False, label="Denoise Before Enhancement (tick if your audio contains heavy background noise)")
-                
                 with gr.Accordion("Advanced Settings", open=False):
                     solver = gr.Dropdown(choices=["Midpoint", "RK4", "Euler"], value="Midpoint", label="CFM ODE Solver")
                     nfe = gr.Slider(minimum=1, maximum=128, value=64, step=1, label="CFM Number of Function Evaluations")
                     tau = gr.Slider(minimum=0, maximum=1, value=0.5, step=0.01, label="CFM Prior Temperature")
-                    # --- THAY ĐỔI 2: Xóa 2 thanh trượt chunking ở đây ---
-                
                 process_btn = gr.Button("Start Processing", variant="primary")
-
             with gr.Column():
                 output_denoised = gr.Audio(label="Output Denoised Audio")
                 output_enhanced = gr.Audio(label="Output Enhanced Audio")
                 status_label_single = gr.Label(label="Status")
-
-        # --- THAY ĐỔI 3: Xóa `chunk_seconds` và `chunks_overlap` khỏi danh sách `inputs` ---
-        process_btn.click(
-            fn=_fn,
-            inputs=[input_audio, solver, nfe, tau, denoise_before_enhance],
-            outputs=[output_denoised, output_enhanced, status_label_single],
-        )
+        process_btn.click(fn=_fn, inputs=[input_audio, solver, nfe, tau, denoise_before_enhance], outputs=[output_denoised, output_enhanced, status_label_single])
 
     # Giao diện cho xử lý hàng loạt
     with gr.Blocks() as batch_folder_interface:
         gr.Markdown("## Resemble Enhance - Batch Processing")
         gr.Markdown("Specify input and output directories to process all files in bulk.")
-        
         in_dir = gr.Textbox(label="Input Directory", placeholder="/content/drive/MyDrive/input_audios")
         out_dir = gr.Textbox(label="Output Directory", placeholder="/content/drive/MyDrive/output_audios")
-        
         denoise_only = gr.Checkbox(value=False, label="Denoise Only (runs with --denoise-only flag)")
-        
         process_folder_btn = gr.Button("Start Batch Processing", variant="primary")
         status_label_batch = gr.Textbox(label="Status Log", lines=10, interactive=False)
-
-        process_folder_btn.click(
-            fn=process_folder,
-            inputs=[in_dir, out_dir, denoise_only],
-            outputs=[status_label_batch]
-        )
-
-    # Kết hợp 2 giao diện bằng Tab
-    interface = gr.TabbedInterface(
-        [single_file_interface, batch_folder_interface],
-        ["Single File Processing", "Batch Folder Processing"]
-    )
+        process_folder_btn.click(fn=process_folder, inputs=[in_dir, out_dir, denoise_only], outputs=[status_label_batch])
     
-    interface.launch()
-
+    interface = gr.TabbedInterface([single_file_interface, batch_folder_interface], ["Single File Processing", "Batch Folder Processing"])
+    
+    interface.launch(share=True)
 
 if __name__ == "__main__":
     main()

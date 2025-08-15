@@ -5,17 +5,27 @@ Download wheels, place them in ```wheels``` folder if auto install not work:
 - [Triton 2.1.0](https://huggingface.co/madbuda/triton-windows-builds/resolve/main/triton-2.1.0-cp311-cp311-win_amd64.whl)
 - [Deepseed 0.13.2](https://github.com/S95Sedan/Deepspeed-Windows/releases/download/v13.2%2Bpy311/deepspeed-0.13.2+1817980-cp311-cp311-win_amd64.whl)
 
-Install dependencies:
+### Install dependencies:
 ```
 pip install uv
 uv sync
 uv pip install -e . --no-deps
 ```
-Run gradio UI:
+### Run gradio UI:
 ```
 uv run app.py
 ```
+### Enhance
 
+```
+uv run resemble_enhance D:\audios\input D:\audios\output
+```
+
+### Denoise only
+
+```
+uv run resemble_enhance D:\audios\input D:\audios\output
+```
 <hr>
 
 # Resemble Enhance
