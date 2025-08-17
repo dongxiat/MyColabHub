@@ -4,7 +4,8 @@ import os
 import sys
 
 os.environ["PYTOCH_ENABLE_MPS_FALLBACK"] = "1"  # for MPS device compatibility
-sys.path.append(f"{os.path.dirname(os.path.abspath(__file__))}/../../third_party/BigVGAN/")
+# BigVGAN path is often handled by project setup, avoid hardcoding sys.path changes here if possible
+# sys.path.append(f"{os.path.dirname(os.path.abspath(__file__))}/../../third_party/BigVGAN/")
 
 import hashlib
 import re
@@ -19,7 +20,7 @@ import matplotlib.pylab as plt
 import numpy as np
 import torch
 import torchaudio
-import tqdm
+from tqdm import tqdm # Import tqdm directly
 from huggingface_hub import snapshot_download, hf_hub_download
 from pydub import AudioSegment, silence
 from transformers import pipeline
@@ -64,12 +65,8 @@ fix_duration = None
 
 
 # chunk text into smaller pieces
-
-
 def chunk_text(text, max_chars=135):
-
     # print(text)
-
     # Bước 1: Tách câu theo dấu ". "
     sentences = [s.strip() for s in text.split('. ') if s.strip()]
     
@@ -89,9 +86,7 @@ def chunk_text(text, max_chars=135):
                     i -= 1
         else:
             i += 1
-
     # print(sentences)
-
     # Bước 2: Tách phần quá dài trong câu theo dấu ", "
     final_sentences = []
     for sentence in sentences:
@@ -107,22 +102,18 @@ def chunk_text(text, max_chars=135):
                 buffer = []
         if buffer:
             final_sentences.append(', '.join(buffer))
-
     # print(final_sentences)
-
-    if len(final_sentences[-1].split()) < 4 and len(final_sentences) >= 2:
+    if len(final_sentences) >= 2 and len(final_sentences[-1].split()) < 4:
         final_sentences[-2] = final_sentences[-2] + ", " + final_sentences[-1]
         final_sentences = final_sentences[0:-1]
     
     # print(final_sentences)
-
     return final_sentences
 
 
 # load vocoder
 def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=device, hf_cache_dir=None):
     if vocoder_name == "vocos":
-        # vocoder = Vocos.from_pretrained("charactr/vocos-mel-24khz").to(device)
         if is_local:
             print(f"Load vocos from local path {local_path}")
             config_path = f"{local_path}/config.yaml"
@@ -132,15 +123,11 @@ def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=dev
             repo_id = "charactr/vocos-mel-24khz"
             config_path = hf_hub_download(repo_id=repo_id, cache_dir=hf_cache_dir, filename="config.yaml")
             model_path = hf_hub_download(repo_id=repo_id, cache_dir=hf_cache_dir, filename="pytorch_model.bin")
-        # print("Download Vocos from huggingface charactr/vocos-mel-24khz")
-        # repo_id = "charactr/vocos-mel-24khz"
-        # config_path = hf_hub_download(repo_id=repo_id, cache_dir=hf_cache_dir, filename="config.yaml")
-        # model_path = hf_hub_download(repo_id=repo_id, cache_dir=hf_cache_dir, filename="pytorch_model.bin")
+
         vocoder = Vocos.from_hparams(config_path)
         state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
-        # print(state_dict)
-        from vocos.feature_extractors import EncodecFeatures
 
+        from vocos.feature_extractors import EncodecFeatures
         if isinstance(vocoder.feature_extractor, EncodecFeatures):
             encodec_parameters = {
                 "feature_extractor.encodec." + key: value
@@ -155,21 +142,17 @@ def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=dev
         except ImportError:
             print("You need to follow the README to init submodule and change the BigVGAN source code.")
         if is_local:
-            """download from https://huggingface.co/nvidia/bigvgan_v2_24khz_100band_256x/tree/main"""
             vocoder = bigvgan.BigVGAN.from_pretrained(local_path, use_cuda_kernel=False)
         else:
             local_path = snapshot_download(repo_id="nvidia/bigvgan_v2_24khz_100band_256x", cache_dir=hf_cache_dir)
             vocoder = bigvgan.BigVGAN.from_pretrained(local_path, use_cuda_kernel=False)
-
         vocoder.remove_weight_norm()
         vocoder = vocoder.eval().to(device)
     return vocoder
 
 
 # load asr pipeline
-
 asr_pipe = None
-
 
 def initialize_asr_pipeline(device: str = device, dtype=None):
     if dtype is None:
@@ -190,8 +173,6 @@ def initialize_asr_pipeline(device: str = device, dtype=None):
 
 
 # transcribe
-
-
 def transcribe(ref_audio, language=None):
     global asr_pipe
     if asr_pipe is None:
@@ -206,8 +187,6 @@ def transcribe(ref_audio, language=None):
 
 
 # load model checkpoint for inference
-
-
 def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
     if dtype is None:
         dtype = (
@@ -222,7 +201,6 @@ def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
     ckpt_type = ckpt_path.split(".")[-1]
     if ckpt_type == "safetensors":
         from safetensors.torch import load_file
-
         checkpoint = load_file(ckpt_path, device=device)
     else:
         checkpoint = torch.load(ckpt_path, map_location=device, weights_only=True)
@@ -236,7 +214,6 @@ def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
             if k not in ["initted", "step"]
         }
 
-        # patch for backward compatibility, 305e3ea
         for key in ["mel_spec.mel_stft.mel_scale.fb", "mel_spec.mel_stft.spectrogram.window"]:
             if key in checkpoint["model_state_dict"]:
                 del checkpoint["model_state_dict"][key]
@@ -254,8 +231,6 @@ def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
 
 
 # load model for inference
-
-
 def load_model(
     model_cls,
     model_cfg,
@@ -314,8 +289,6 @@ def remove_silence_edges(audio, silence_threshold=-42):
 
 
 # preprocess reference audio and text
-
-
 def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_info=print, device=device):
     show_info("Converting audio...")
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
@@ -388,8 +361,6 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
 
 
 # infer process: chunk text -> infer batches [i.e. infer_batch_process()]
-
-
 def infer_process(
     ref_audio,
     ref_text,
@@ -410,7 +381,10 @@ def infer_process(
 ):
     # Split the input text into batches
     audio, sr = torchaudio.load(ref_audio)
-    max_chars = int(len(ref_text.encode("utf-8")) / (audio.shape[-1] / sr) * (25 - audio.shape[-1] / sr))
+    if sr > 0 and audio.shape[-1] > 0:
+        max_chars = int(len(ref_text.encode("utf-8")) / (audio.shape[-1] / sr) * (25 - audio.shape[-1] / sr))
+    else:
+        max_chars = 150 # Default value if audio is empty or sr is 0
     gen_text_batches = chunk_text(gen_text, max_chars=max_chars)
     for i, gen_text in enumerate(gen_text_batches):
         print(f"gen_text {i}", gen_text)
@@ -437,8 +411,6 @@ def infer_process(
 
 
 # infer batches
-
-
 def infer_batch_process(
     ref_audio,
     ref_text,
@@ -461,7 +433,7 @@ def infer_batch_process(
         audio = torch.mean(audio, dim=0, keepdim=True)
 
     rms = torch.sqrt(torch.mean(torch.square(audio)))
-    if rms < target_rms:
+    if rms > 0 and rms < target_rms:
         audio = audio * target_rms / rms
     if sr != target_sample_rate:
         resampler = torchaudio.transforms.Resample(sr, target_sample_rate)
@@ -471,9 +443,17 @@ def infer_batch_process(
     generated_waves = []
     spectrograms = []
 
-    if len(ref_text[-1].encode("utf-8")) == 1:
-        ref_text = ref_text + " "
-    for i, gen_text in enumerate(progress.tqdm(gen_text_batches)):
+    # <<< SỬA LỖI LOGIC: Xử lý progress bar một cách an toàn >>>
+    iterable = tqdm(gen_text_batches) if progress == tqdm else gen_text_batches
+    
+    for i, gen_text in enumerate(iterable):
+        if progress != tqdm and callable(progress):
+            try:
+                # Cập nhật progress bar của Gradio
+                progress(i / len(gen_text_batches), desc=f"Đang tạo chunk {i+1}/{len(gen_text_batches)}")
+            except:
+                pass # Bỏ qua nếu có lỗi từ callback
+
         # Prepare the text
         text_list = [ref_text + gen_text]
         final_text_list = convert_char_to_pinyin(text_list)
@@ -485,7 +465,7 @@ def infer_batch_process(
             # Calculate duration
             ref_text_len = len(ref_text.encode("utf-8"))
             gen_text_len = len(gen_text.encode("utf-8"))
-            duration = ref_audio_len + int(ref_audio_len / ref_text_len * gen_text_len / speed)
+            duration = ref_audio_len + int(ref_audio_len / ref_text_len * gen_text_len / speed) if ref_text_len > 0 else ref_audio_len + 100
 
         # inference
         with torch.inference_mode():
@@ -505,7 +485,7 @@ def infer_batch_process(
                 generated_wave = vocoder.decode(generated_mel_spec)
             elif mel_spec_type == "bigvgan":
                 generated_wave = vocoder(generated_mel_spec)
-            if rms < target_rms:
+            if rms > 0 and rms < target_rms:
                 generated_wave = generated_wave * rms / target_rms
 
             # wav -> numpy
@@ -513,53 +493,37 @@ def infer_batch_process(
 
             generated_waves.append(generated_wave)
             spectrograms.append(generated_mel_spec[0].cpu().numpy())
+    
+    if not generated_waves:
+        return np.array([]), target_sample_rate, np.array([])
 
     # Combine all generated waves with cross-fading
-    if cross_fade_duration <= 0:
-        # Simply concatenate
+    if cross_fade_duration <= 0 or len(generated_waves) == 1:
         final_wave = np.concatenate(generated_waves)
     else:
         final_wave = generated_waves[0]
         for i in range(1, len(generated_waves)):
             prev_wave = final_wave
             next_wave = generated_waves[i]
-
-            # Calculate cross-fade samples, ensuring it does not exceed wave lengths
             cross_fade_samples = int(cross_fade_duration * target_sample_rate)
             cross_fade_samples = min(cross_fade_samples, len(prev_wave), len(next_wave))
-
             if cross_fade_samples <= 0:
-                # No overlap possible, concatenate
                 final_wave = np.concatenate([prev_wave, next_wave])
                 continue
-
-            # Overlapping parts
             prev_overlap = prev_wave[-cross_fade_samples:]
             next_overlap = next_wave[:cross_fade_samples]
-
-            # Fade out and fade in
             fade_out = np.linspace(1, 0, cross_fade_samples)
             fade_in = np.linspace(0, 1, cross_fade_samples)
-
-            # Cross-faded overlap
             cross_faded_overlap = prev_overlap * fade_out + next_overlap * fade_in
-
-            # Combine
-            new_wave = np.concatenate(
+            final_wave = np.concatenate(
                 [prev_wave[:-cross_fade_samples], cross_faded_overlap, next_wave[cross_fade_samples:]]
             )
 
-            final_wave = new_wave
-
-    # Create a combined spectrogram
     combined_spectrogram = np.concatenate(spectrograms, axis=1)
-
     return final_wave, target_sample_rate, combined_spectrogram
 
 
 # remove silence from generated wav
-
-
 def remove_silence_for_generated_wav(filename):
     aseg = AudioSegment.from_file(filename)
     non_silent_segs = silence.split_on_silence(
@@ -573,8 +537,6 @@ def remove_silence_for_generated_wav(filename):
 
 
 # save spectrogram
-
-
 def save_spectrogram(spectrogram, path):
     plt.figure(figsize=(12, 4))
     plt.imshow(spectrogram, origin="lower", aspect="auto")

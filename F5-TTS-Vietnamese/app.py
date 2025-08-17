@@ -59,7 +59,6 @@ if MODEL_TYPE == 'old':
     print("Đang tải model theo kiến trúc F5-TTS Base...")
     sys.path.insert(0, PATH_TO_OLD_F5_REPO)
     from f5_tts.model import DiT
-    # Tải các hàm từ utils mới
     from f5_tts.infer.utils_infer import load_vocoder, load_model
     vocoder = load_vocoder()
     model = load_model(
@@ -82,7 +81,6 @@ elif MODEL_TYPE == 'new':
     sys.path.pop(0)
     print("✅ Tải model MỚI thành công.")
 
-# Cache cho model cũ giờ là ĐƯỜNG DẪN và TEXT
 ref_audio_path_old, ref_text_processed_old = None, None
 
 # --- CÁC HÀM XỬ LÝ LOGIC ---
@@ -112,7 +110,6 @@ def handle_preprocess(audio_path, text, clip_short, progress):
         with suppress_outputs(PATH_TO_OLD_F5_REPO):
             from f5_tts.infer.utils_infer import preprocess_ref_audio_text
             processed_path, transcribed_text = preprocess_ref_audio_text(audio_path, text, clip_short=clip_short)
-            # Cập nhật cache
             ref_audio_path_old = processed_path
             ref_text_processed_old = transcribed_text
     
@@ -146,27 +143,24 @@ def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, n
     try:
         text_from_ui = ref_text_from_ui.strip()
         
-        # --- Logic xử lý lại giọng mẫu ---
         if MODEL_TYPE == 'new':
             if text_from_ui and text_from_ui != tts_instance.ref_text:
                 handle_preprocess(tts_instance.last_processed_audio_path, text_from_ui, clip_short=False, progress=progress)
-        else: # Model 'old'
+        else:
             if text_from_ui and text_from_ui != ref_text_processed_old:
-                # Model cũ không có `last_processed_audio_path`, nó cần đường dẫn gốc từ UI
                 handle_preprocess(ref_audio_path, text_from_ui, clip_short=False, progress=progress)
         
         print(f"Bắt đầu tạo audio cho văn bản...")
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
             tmp_path = tmp_wav.name
 
-        # --- Logic tạo giọng nói ---
-        spectrogram_path = None # Mặc định không có spectrogram
+        spectrogram_path = None
         if MODEL_TYPE == 'new':
             with suppress_outputs(PATH_TO_NEW_F5_REPO):
                 from vinorm import TTSnorm
                 final_text = TTSnorm(gen_text)
                 tts_instance.generate(text=final_text, output_path=tmp_path, nfe_step=nfe_step, cfg_strength=cfg_strength, speed=speed, progress_callback=progress)
-        else: # Model 'old'
+        else:
             with suppress_outputs(PATH_TO_OLD_F5_REPO):
                 from vinorm import TTSnorm
                 from f5_tts.infer.utils_infer import infer_process, save_spectrogram
@@ -178,10 +172,9 @@ def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, n
                     vocoder=tts_instance['vocoder'], 
                     speed=speed, 
                     nfe_step=nfe_step,
-                    progress=gr # Truyền progress của Gradio
+                    progress=progress # <<< SỬA LỖI: TRUYỀN ĐÚNG ĐỐI TƯỢNG PROGRESS
                 )
                 sf.write(tmp_path, final_wave, final_sr)
-                # Xử lý spectrogram
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_spec:
                     spectrogram_path = tmp_spec.name
                     save_spectrogram(spectrogram, spectrogram_path)
@@ -189,7 +182,6 @@ def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, n
         final_wave, final_sr = sf.read(tmp_path)
         os.remove(tmp_path)
         
-        # Trả về cả spectrogram path
         return (final_sr, final_wave), spectrogram_path
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -223,7 +215,6 @@ with gr.Blocks(theme=latte) as demo:
         output_audio = gr.Audio(label="🎧 Âm thanh tạo ra", type="numpy")
         output_spectrogram = gr.Image(label="📊 Spectrogram (Chỉ có ở model cũ)", visible=(MODEL_TYPE == 'old'))
 
-    # --- KẾT NỐI SỰ KIỆN ---
     def reset_to_upload():
         return None, "", sample_names[0]
 
