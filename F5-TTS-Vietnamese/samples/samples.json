@@ -45,9 +45,34 @@
     "ref_text": "Vậy chú chơi freefire với em đi rồi em, em em trao đổi cho chú. Thì trao đổi thôi nghe hổng có đòi hỏi...đừng đừng đừng có ra giá nữa á"
   },
     {
-    "name": "Giọng Nữ Miền Nam Thời Sự (Trung Niên - Noise)",
-    "audio_path": "GiongNu-ThoiSu-TrungNien-MienNam(clean).wav",
+    "name": "Giọng Nữ Miền Nam Thời Sự (Trung Niên)",
+    "audio_path": "GiongNu-MienNam-ThoiSu-TrungNien(clean).wav",
     "ref_text": "Hạ tầng giao thông sau thảm họa hứng chịu thiệt hại nặng nề"
+  },
+    {
+    "name": "Giọng Nam Miền Bắc Thời Sự VTV Tuấn Trung v1 (Trung Niên)",
+    "audio_path": "GiongNam-MienBac-ThoiSu-VTV-TuanTrungv1.wav",
+    "ref_text": "15 năm qua, chương trình Fast Forward, chuyên thu nhận thực phẩm từ các chợ, các nhà hảo tâm và các nhà bán buôn ủng hộ...để rồi phân phát miễn phí cho các cộng đồng có nhu cầu"
+  },
+    {
+    "name": "Giọng Nam Miền Bắc Thời Sự VTV Tuấn Trung v2 (Trung Niên)",
+    "audio_path": "GiongNam-MienBac-ThoiSu-VTV-TuanTrungv2.wav",
+    "ref_text": "trạm xá này...hôm nay có 1 sự kiện đặc biệt. Một điểm bỏ phiếu di động...được bố trí ngay trong khuôn viên. Gọi là di động vì điểm bỏ phiếu này chỉ ở đây trong hôm nay...hôm sau lại đi chỗ khác"
+  },
+    {
+    "name": "Giọng Nam Miền Bắc Podcast Nguyễn Hữu Chiến Thắng v1 (Trung Niên)",
+    "audio_path": "GiongNam-MienBac-Podcast-TrungNien-NHCTv1.wav",
+    "ref_text": "À...bác cả sĩ đã về rồi. Lần nào, hàng bác cũng bán hết sớm. Bác cũng ra về trước...vì nhà có con mọn."
+  },
+    {
+    "name": "Giọng Nam Miền Bắc Podcast Nguyễn Hữu Chiến Thắng v2 (Trung Niên)",
+    "audio_path": "GiongNam-MienBac-Podcast-TrungNien-NHCTv2.wav",
+    "ref_text": "còn cô...cô cũng có thể về sớm được, vì chợ chiều cũng vắng người mua. Nhưng cô còn cứ vui chị vui em lẩn khẩn ở lại. Chỉ tại con Liên, nó cứ giữ mình để về một thể"
+  },
+    {
+    "name": "",
+    "audio_path": "",
+    "ref_text": ""
   },
   {
     "name": "Giọng Nam Miền Nam Erax (Trẻ)",

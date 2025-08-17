@@ -48,10 +48,30 @@ WORD_LIMIT = int(os.getenv('WORD_LIMIT', 1000))
 DISPLAY_NAME = os.getenv('DISPLAY_NAME', 'Unknown Model')
 INIT_PARAMS_JSON = os.getenv('INIT_PARAMS_JSON', '{}')
 INIT_PARAMS = json.loads(INIT_PARAMS_JSON)
+
+PATH_TO_OLD_F5_REPO = os.path.abspath('f5_tts_old')
 PATH_TO_NEW_F5_REPO = os.path.abspath('f5_tts_new')
 
 tts_instance = None
-if MODEL_TYPE == 'new':
+print(f"Nhận diện loại model: {MODEL_TYPE}")
+
+if MODEL_TYPE == 'old':
+    print("Đang tải model theo kiến trúc F5-TTS Base...")
+    sys.path.insert(0, PATH_TO_OLD_F5_REPO)
+    from f5_tts.model import DiT
+    # Tải các hàm từ utils mới
+    from f5_tts.infer.utils_infer import load_vocoder, load_model
+    vocoder = load_vocoder()
+    model = load_model(
+        model_cls=DiT, 
+        model_cfg=dict(dim=1024, depth=22, heads=16, ff_mult=2, text_dim=512, conv_layers=4),
+        ckpt_path=str(cached_path(CKPT_PATH)), 
+        vocab_file=str(cached_path(VOCAB_PATH)),
+    )
+    tts_instance = {"model": model, "vocoder": vocoder}
+    sys.path.pop(0)
+    print("✅ Tải model CŨ thành công.")
+elif MODEL_TYPE == 'new':
     print(f"Đang tải model với các tham số: {INIT_PARAMS}")
     sys.path.insert(0, PATH_TO_NEW_F5_REPO)
     from f5tts_wrapper import F5TTSWrapper
@@ -61,11 +81,11 @@ if MODEL_TYPE == 'new':
     tts_instance = F5TTSWrapper(**INIT_PARAMS)
     sys.path.pop(0)
     print("✅ Tải model MỚI thành công.")
-else:
-    raise NotImplementedError("Kiến trúc model cũ không còn được hỗ trợ trong phiên bản app này.")
+
+# Cache cho model cũ giờ là ĐƯỜNG DẪN và TEXT
+ref_audio_path_old, ref_text_processed_old = None, None
 
 # --- CÁC HÀM XỬ LÝ LOGIC ---
-
 @contextlib.contextmanager
 def suppress_outputs(target_path):
     original_stdout, original_stderr = sys.stdout, sys.stderr
@@ -82,16 +102,23 @@ def handle_preprocess(audio_path, text, clip_short, progress):
     progress(0, desc="Đang xử lý giọng mẫu...")
     gr.Info("Đã nhận audio mẫu. Bắt đầu xử lý...")
     
-    with suppress_outputs(PATH_TO_NEW_F5_REPO):
-        processed_path, transcribed_text = tts_instance.preprocess_reference(
-            ref_audio_path=audio_path, 
-            ref_text=text, 
-            clip_short=clip_short
-        )
+    if MODEL_TYPE == 'new':
+        with suppress_outputs(PATH_TO_NEW_F5_REPO):
+            processed_path, transcribed_text = tts_instance.preprocess_reference(
+                ref_audio_path=audio_path, ref_text=text, clip_short=clip_short
+            )
+    else: # Model 'old'
+        global ref_audio_path_old, ref_text_processed_old
+        with suppress_outputs(PATH_TO_OLD_F5_REPO):
+            from f5_tts.infer.utils_infer import preprocess_ref_audio_text
+            processed_path, transcribed_text = preprocess_ref_audio_text(audio_path, text, clip_short=clip_short)
+            # Cập nhật cache
+            ref_audio_path_old = processed_path
+            ref_text_processed_old = transcribed_text
     
     progress(1, desc="Xử lý giọng mẫu hoàn tất!")
     gr.Info("Xử lý giọng mẫu hoàn tất!")
-    print(f"Xử lý giọng mẫu hoàn tất.\n==================\nĐường dẫn: {processed_path},\nVăn bản của giọng mẫu: '{transcribed_text}'\n==================")
+    print(f"Xử lý giọng mẫu hoàn tất.\n Đường dẫn: {processed_path},\n Văn bản của giọng mẫu: '{transcribed_text}'")
     return processed_path, transcribed_text
 
 @spaces.GPU
@@ -110,44 +137,60 @@ def process_manual_upload(ref_audio_orig, progress=gr.Progress()):
 
 @spaces.GPU
 def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, nfe_step, progress=gr.Progress()):
-    if tts_instance.ref_audio_processed is None:
+    is_ready = (tts_instance.ref_audio_processed is not None) if MODEL_TYPE == 'new' else (ref_audio_path_old is not None)
+    if not is_ready:
         raise gr.Error("Lỗi: Vui lòng chọn hoặc tải lên một giọng mẫu trước khi tạo giọng nói.")
     if not gen_text.strip():
         raise gr.Error("Vui lòng nhập nội dung văn bản.")
     
     try:
         text_from_ui = ref_text_from_ui.strip()
-        # <<< SỬA LỖI 2: LUÔN KIỂM TRA LẠI TEXT TỪ UI TRƯỚC KHI TẠO >>>
-        # Chỉ xử lý lại khi người dùng CÓ NHẬP text VÀ text đó KHÁC với text đang được cache.
-        if text_from_ui and text_from_ui != tts_instance.ref_text:
-            print("Phát hiện văn bản của giọng mẫu đã bị sửa đổi. Đang xử lý lại...")
-            # Dùng lại đường dẫn file đã được xử lý (tts_instance.last_processed_audio_path).
-            # Không cắt lại lần nữa (`clip_short=False`).
-            handle_preprocess(
-                audio_path=tts_instance.last_processed_audio_path, 
-                text=text_from_ui, 
-                clip_short=False, 
-                progress=progress
-            )
-        else:
-            print("Sử dụng giọng mẫu đã được cache hoặc người dùng không thay đổi text.")
-
-        print(f"Bắt đầu tạo audio cho văn bản...\n==================")
+        
+        # --- Logic xử lý lại giọng mẫu ---
+        if MODEL_TYPE == 'new':
+            if text_from_ui and text_from_ui != tts_instance.ref_text:
+                handle_preprocess(tts_instance.last_processed_audio_path, text_from_ui, clip_short=False, progress=progress)
+        else: # Model 'old'
+            if text_from_ui and text_from_ui != ref_text_processed_old:
+                # Model cũ không có `last_processed_audio_path`, nó cần đường dẫn gốc từ UI
+                handle_preprocess(ref_audio_path, text_from_ui, clip_short=False, progress=progress)
+        
+        print(f"Bắt đầu tạo audio cho văn bản...")
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
             tmp_path = tmp_wav.name
 
-        with suppress_outputs(PATH_TO_NEW_F5_REPO):
-            from vinorm import TTSnorm
-            final_text = TTSnorm(gen_text)
-            tts_instance.generate(
-                text=final_text, output_path=tmp_path, nfe_step=nfe_step, 
-                cfg_strength=cfg_strength, speed=speed, progress_callback=progress
-            )
+        # --- Logic tạo giọng nói ---
+        spectrogram_path = None # Mặc định không có spectrogram
+        if MODEL_TYPE == 'new':
+            with suppress_outputs(PATH_TO_NEW_F5_REPO):
+                from vinorm import TTSnorm
+                final_text = TTSnorm(gen_text)
+                tts_instance.generate(text=final_text, output_path=tmp_path, nfe_step=nfe_step, cfg_strength=cfg_strength, speed=speed, progress_callback=progress)
+        else: # Model 'old'
+            with suppress_outputs(PATH_TO_OLD_F5_REPO):
+                from vinorm import TTSnorm
+                from f5_tts.infer.utils_infer import infer_process, save_spectrogram
+                final_wave, final_sr, spectrogram = infer_process(
+                    ref_audio=ref_audio_path_old, 
+                    ref_text=ref_text_processed_old, 
+                    gen_text=TTSnorm(gen_text),
+                    model_obj=tts_instance['model'], 
+                    vocoder=tts_instance['vocoder'], 
+                    speed=speed, 
+                    nfe_step=nfe_step,
+                    progress=gr # Truyền progress của Gradio
+                )
+                sf.write(tmp_path, final_wave, final_sr)
+                # Xử lý spectrogram
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_spec:
+                    spectrogram_path = tmp_spec.name
+                    save_spectrogram(spectrogram, spectrogram_path)
 
         final_wave, final_sr = sf.read(tmp_path)
         os.remove(tmp_path)
         
-        return (final_sr, final_wave)
+        # Trả về cả spectrogram path
+        return (final_sr, final_wave), spectrogram_path
     except Exception as e:
         import traceback; traceback.print_exc()
         raise gr.Error(f"Lỗi khi tạo giọng nói: {e}")
@@ -175,7 +218,10 @@ with gr.Blocks(theme=latte) as demo:
         nfe_step_slider = gr.Slider(minimum=16, maximum=64, value=32, step=2, label="🔍 Số bước khử nhiễu (NFE)", info="Cao hơn = chậm hơn nhưng có thể chất lượng tốt hơn. Thấp hơn = nhanh hơn.")
 
     btn = gr.Button("🔥 4. Tạo giọng nói", variant="primary")
-    output_audio = gr.Audio(label="🎧 Âm thanh tạo ra", type="numpy")
+    
+    with gr.Row():
+        output_audio = gr.Audio(label="🎧 Âm thanh tạo ra", type="numpy")
+        output_spectrogram = gr.Image(label="📊 Spectrogram (Chỉ có ở model cũ)", visible=(MODEL_TYPE == 'old'))
 
     # --- KẾT NỐI SỰ KIỆN ---
     def reset_to_upload():
@@ -185,11 +231,10 @@ with gr.Blocks(theme=latte) as demo:
     ref_audio_ui.upload(fn=process_manual_upload, inputs=[ref_audio_ui], outputs=[ref_audio_ui, ref_text_ui, sample_dropdown], show_progress="full")
     ref_audio_ui.clear(fn=reset_to_upload, outputs=[ref_audio_ui, ref_text_ui, sample_dropdown])
     
-    # <<< SỬA LỖI 1: Cung cấp ĐẦY ĐỦ input và CHỈ định output đúng >>>
     btn.click(
         fn=infer_tts, 
         inputs=[ref_audio_ui, ref_text_ui, gen_text_ui, speed_slider, cfg_strength_slider, nfe_step_slider], 
-        outputs=[output_audio]
+        outputs=[output_audio, output_spectrogram]
     )
 
-demo.queue().launch(share=True)
+demo.queue().launch()
