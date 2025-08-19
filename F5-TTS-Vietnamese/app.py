@@ -133,7 +133,7 @@ def process_manual_upload(ref_audio_orig, progress=gr.Progress()):
     return processed_path, transcribed_text, sample_names[0]
 
 @spaces.GPU
-def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, nfe_step, progress=gr.Progress()):
+def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, nfe_step, output_path_from_ui, output_volume, pause_duration, progress=gr.Progress()):
     is_ready = (tts_instance.ref_audio_processed is not None) if MODEL_TYPE == 'new' else (ref_audio_path_old is not None)
     if not is_ready:
         raise gr.Error("Lỗi: Vui lòng chọn hoặc tải lên một giọng mẫu trước khi tạo giọng nói.")
@@ -159,8 +159,9 @@ def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, n
             with suppress_outputs(PATH_TO_NEW_F5_REPO):
                 from vinorm import TTSnorm
                 final_text = TTSnorm(gen_text)
-                tts_instance.generate(text=final_text, output_path=tmp_path, nfe_step=nfe_step, cfg_strength=cfg_strength, speed=speed, progress_callback=progress)
-        else:
+                tts_instance.generate(text=final_text, output_path=tmp_path, nfe_step=nfe_step, cfg_strength=cfg_strength, speed=speed, progress_callback=progress,
+                                      target_rms=output_volume, cross_fade_duration=pause_duration)
+        else: 
             with suppress_outputs(PATH_TO_OLD_F5_REPO):
                 from vinorm import TTSnorm
                 from f5_tts.infer.utils_infer import infer_process, save_spectrogram
@@ -172,7 +173,10 @@ def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, n
                     vocoder=tts_instance['vocoder'], 
                     speed=speed, 
                     nfe_step=nfe_step,
-                    progress=progress # <<< SỬA LỖI: TRUYỀN ĐÚNG ĐỐI TƯỢNG PROGRESS
+                    cfg_strength=cfg_strength,
+                    target_rms=output_volume,
+                    cross_fade_duration=pause_duration,
+                    progress=progress
                 )
                 sf.write(tmp_path, final_wave, final_sr)
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_spec:
@@ -181,6 +185,20 @@ def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, n
 
         final_wave, final_sr = sf.read(tmp_path)
         os.remove(tmp_path)
+
+        output_path_from_ui = output_path_from_ui.strip()
+        if output_path_from_ui:
+            save_path = output_path_from_ui
+            if not save_path.lower().endswith((".wav", ".mp3")): save_path += ".wav"
+            parent_dir = os.path.dirname(save_path)
+            if parent_dir and not os.path.exists(parent_dir): os.makedirs(parent_dir)
+        else:
+            default_dir = "outputs"
+            os.makedirs(default_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            save_path = os.path.join(default_dir, f"generated_audio_{timestamp}.wav")
+        sf.write(save_path, final_wave, final_sr)
+        gr.Info(f"✅ Âm thanh đã được lưu tại: {save_path}")
         
         return (final_sr, final_wave), spectrogram_path
     except Exception as e:
@@ -204,10 +222,13 @@ with gr.Blocks(theme=latte) as demo:
     
     with gr.Row():
         speed_slider = gr.Slider(0.3, 2.0, value=1.0, step=0.1, label="⚡ Tốc độ")
-        cfg_strength_slider = gr.Slider(0.5, 5.0, value=2.5, step=0.1, label="🗣️ Độ bám sát giọng mẫu")
+        cfg_strength_slider = gr.Slider(0.5, 5.0, value=2.5, step=0.1, label="🗣️ Độ bám sát giọng mẫu", info="Cao hơn = giống giọng mẫu hơn. Thấp hơn = tự nhiên hơn.")
     
     with gr.Accordion("🛠️ Cài đặt nâng cao", open=False):
         nfe_step_slider = gr.Slider(minimum=16, maximum=64, value=32, step=2, label="🔍 Số bước khử nhiễu (NFE)", info="Cao hơn = chậm hơn nhưng có thể chất lượng tốt hơn. Thấp hơn = nhanh hơn.")
+        output_volume_slider = gr.Slider(minimum=0.05, maximum=0.5, value=0.1, step=0.01, label="🔊 Âm lượng Output (RMS)", info="Chỉnh âm lượng tổng thể của audio được tạo ra.")
+        pause_duration_slider = gr.Slider(minimum=0.0, maximum=1.0, value=0.15, step=0.05, label="⏱️ Độ dài nghỉ giữa câu (giây)", info="Thời gian nối âm giữa các đoạn văn bản được chia nhỏ.")
+        output_path_ui = gr.Textbox(label="🎵 Đường dẫn lưu file (tùy chọn)", placeholder="Để trống sẽ tự động lưu vào thư mục 'outputs'", value="")
 
     btn = gr.Button("🔥 4. Tạo giọng nói", variant="primary")
     
@@ -224,7 +245,7 @@ with gr.Blocks(theme=latte) as demo:
     
     btn.click(
         fn=infer_tts, 
-        inputs=[ref_audio_ui, ref_text_ui, gen_text_ui, speed_slider, cfg_strength_slider, nfe_step_slider], 
+        inputs=[ref_audio_ui, ref_text_ui, gen_text_ui, speed_slider, cfg_strength_slider, nfe_step_slider, output_path_ui, output_volume_slider, pause_duration_slider], 
         outputs=[output_audio, output_spectrogram]
     )
 

@@ -54,6 +54,7 @@ class F5TTSWrapper:
         self.last_processed_audio_path = None
         
         self.target_rms = 0.1
+        self.cross_fade_duration = 0.15
         self.nfe_step = 32
         self.cfg_strength = 2.0
         self.speed = 1.0
@@ -105,9 +106,13 @@ class F5TTSWrapper:
 
         audio, sr = torchaudio.load(processed_audio_path)
         if audio.shape[0] > 1: audio = torch.mean(audio, dim=0, keepdim=True)
+        
         rms = torch.sqrt(torch.mean(torch.square(audio)))
-        if rms > 0 and rms < self.target_rms: audio = audio * self.target_rms / rms
-        if sr != self.target_sample_rate: audio = torchaudio.transforms.Resample(sr, self.target_sample_rate)(audio)
+        if rms > 0 and rms < self.target_rms:
+            audio = audio * self.target_rms / rms
+        
+        if sr != self.target_sample_rate: 
+            audio = torchaudio.transforms.Resample(sr, self.target_sample_rate)(audio)
         
         self.ref_audio_processed = audio.to(self.device)
         self.ref_text = ref_text.strip()
@@ -120,6 +125,9 @@ class F5TTSWrapper:
         if self.ref_audio_processed is None: raise ValueError("Reference audio not preprocessed.")
         
         speed = kwargs.get('speed', self.speed)
+        target_rms = kwargs.get('target_rms', self.target_rms)
+        cross_fade_duration = kwargs.get('cross_fade_duration', self.cross_fade_duration)
+
         audio_duration_s = self.ref_audio_processed.shape[-1] / self.target_sample_rate
         max_chars = int(len(self.ref_text.encode("utf-8")) / audio_duration_s * (22 - audio_duration_s)) if audio_duration_s > 0 else 50
         
@@ -138,12 +146,29 @@ class F5TTSWrapper:
                 generated, _ = self.model.sample(cond=self.ref_audio_processed, text=[self.ref_text + " " + text_batch], duration=duration, steps=kwargs.get('nfe_step', self.nfe_step), cfg_strength=kwargs.get('cfg_strength', self.cfg_strength), sway_sampling_coef=-1.0)
                 generated = generated.to(torch.float32)[:, self.ref_audio_len:, :].permute(0, 2, 1)
                 wave = self.vocoder.decode(generated) if self.vocoder_name == "vocos" else self.vocoder(generated)
-                rms = torch.sqrt(torch.mean(torch.square(self.ref_audio_processed)))
-                if rms > 0 and rms < self.target_rms: wave = wave * rms / self.target_rms
+                
+                rms = torch.sqrt(torch.mean(torch.square(wave)))
+                if rms > 0:
+                    wave = wave * (target_rms / rms)
+
                 generated_waves.append(wave.squeeze().cpu().numpy())
         
-        final_wave = np.concatenate(generated_waves)
-        
+        if len(generated_waves) > 1 and cross_fade_duration > 0:
+            final_wave = generated_waves[0]
+            for i in range(1, len(generated_waves)):
+                prev_wave, next_wave = final_wave, generated_waves[i]
+                fade_samples = int(cross_fade_duration * self.target_sample_rate)
+                fade_samples = min(fade_samples, len(prev_wave), len(next_wave))
+                if fade_samples > 0:
+                    fade_out = np.linspace(1, 0, fade_samples)
+                    fade_in = np.linspace(0, 1, fade_samples)
+                    cross_faded = prev_wave[-fade_samples:] * fade_out + next_wave[:fade_samples] * fade_in
+                    final_wave = np.concatenate([prev_wave[:-fade_samples], cross_faded, next_wave[fade_samples:]])
+                else:
+                    final_wave = np.concatenate([prev_wave, next_wave])
+        else:
+            final_wave = np.concatenate(generated_waves)
+
         if kwargs.get('output_path'):
             torchaudio.save(kwargs['output_path'], torch.tensor(final_wave).unsqueeze(0), self.target_sample_rate)
             return kwargs['output_path']
