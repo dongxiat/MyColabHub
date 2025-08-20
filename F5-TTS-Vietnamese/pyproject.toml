@@ -3,8 +3,8 @@
 [project]
 name = "f5-tts-vietnamese"
 version = "0.1.0"
-description = "Gradio application for F5-TTS models."
-requires-python = ">=3.10, <3.13"
+description = "f5-tts-vietnamese"
+requires-python = ">=3.10, <=3.11"
 dependencies = [
     # --- Framework chính ---
     "torch==2.3.1", # Pin version để đảm bảo tương thích
@@ -29,12 +29,15 @@ dependencies = [
     "transformers",
     "vocos",
     "x_transformers>=1.31.14",
-
+	"wandb",
+	"click",
+    "ema_pytorch>=0.5.2",
+    "datasets",
     # --- Thư viện xử lý ngôn ngữ Tiếng Việt ---
     "vinorm",
     "jieba",
     "viphoneme",
-    "underthesea",
+    #"underthesea",
     "eng_to_ipa",
     "phonemizer",
 
@@ -44,14 +47,6 @@ dependencies = [
     "transformers_stream_generator" # Có thể cần cho một số model
 ]
 
-# --- Các gói chỉ dùng cho phát triển/huấn luyện (không cần khi chạy app) ---
-[project.optional-dependencies]
-dev = [
-    "click",
-    "ema_pytorch>=0.5.2",
-    "wandb",
-    "datasets" # Thường dùng cho training
-]
 
 # --- GIẢI PHÁP TRIỆT ĐỂ CHO LỖI BUILD ---
 # Tự động cài các gói cần thiết để build các thư viện viết bằng Rust
