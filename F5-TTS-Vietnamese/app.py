@@ -5,7 +5,7 @@ import gradio as gr
 import json
 import numpy as np
 from datetime import datetime
-from huggingface_hub import login
+from huggingface_hub import hf_hub_download
 from cached_path import cached_path
 import tempfile
 import soundfile as sf
@@ -23,8 +23,8 @@ MODELS_DATA = {
     "Hynt_100h": {"display_name": "Hynt (150h đọc Tiếng Việt 500k Steps)", "repo": "cuongdesign/Vietnamese-TTS", "model_file": "model_500000.pt", "vocab_file": "vocab.txt", "type": "old"},
     "DanhTran": {"display_name": "DanhTran (100h đọc tiếng Việt dữ liệu của VinAI)", "repo": "danhtran2mind/vi-f5-tts", "model_file": "ckpts/model_last.pt", "vocab_file": "vocab.txt", "type": "old"},
     "ZaloPay": {"display_name": "ZaloPay (model của Zalopay 1tr3 Steps)", "repo": "zalopay/vietnamese-tts", "model_file": "model_1290000.pt", "vocab_file": "vocab.txt", "type": "old"},
-    "EraX Smile Female": {"display_name": "EraX Smile Female (Chuyên Clone cho giọng nữ 8 vùng miền)", "repo": "erax-ai/EraX-Smile-Female-F5-V1.0", "model_file": "model/model_612000.safetensors", "vocab_file": "model/vocab.txt", "type": "new", "init_params": {"vocoder_name": "vocos", "use_ema": False}},
-    "EraX Smile Unisex": {"display_name": "EraX Smile Unisex (cả Nam/Nữ 8 vùng miền)", "repo": "erax-ai/EraX-Smile-UnixSex-F5", "model_file": "models/overfit.safetensors", "vocab_file": "models/vocab.txt", "type": "new", "init_params": {"model_name": "F5TTS_v1_Base", "vocoder_name": "vocos", "use_ema": True, "target_sample_rate": 24000, "n_mel_channels": 100, "hop_length": 256, "win_length": 1024, "n_fft": 1024, "ode_method": 'euler'}},
+    "EraX_Smile_Female": {"display_name": "EraX Smile Female (Chuyên Clone cho giọng nữ 8 vùng miền)", "repo": "erax-ai/EraX-Smile-Female-F5-V1.0", "model_file": "model/model_612000.safetensors", "vocab_file": "model/vocab.txt", "type": "new", "init_params": {"vocoder_name": "vocos", "use_ema": False}},
+    "EraX_Smile_Unisex": {"display_name": "EraX Smile Unisex (cả Nam/Nữ 8 vùng miền)", "repo": "erax-ai/EraX-Smile-UnixSex-F5", "model_file": "models/overfit.safetensors", "vocab_file": "models/vocab.txt", "type": "new", "init_params": {"model_name": "F5TTS_v1_Base", "vocoder_name": "vocos", "use_ema": True, "target_sample_rate": 24000, "n_mel_channels": 100, "hop_length": 256, "win_length": 1024, "n_fft": 1024, "ode_method": 'euler'}},
 }
 MODEL_DISPLAY_NAMES = [info['display_name'] for info in MODELS_DATA.values()]
 MODEL_DISPLAY_NAMES.insert(0, "(Chưa chọn model)")
@@ -52,17 +52,18 @@ def load_samples():
     return sample_names, sample_lookup
 sample_names, sample_lookup = load_samples()
 
-# --- BIẾN TOÀN CỤC ĐỂ QUẢN LÝ TRẠNG THÁI ---
+# --- BIẾN TOÀN CỤC ---
+MODELS_LOCAL_DIR = "models"
 PATH_TO_OLD_F5_REPO = os.path.abspath('f5_tts_old')
 PATH_TO_NEW_F5_REPO = os.path.abspath('f5_tts_new')
 tts_instance = None
 MODEL_TYPE = None
+last_processed_source_path_old = None 
 ref_audio_path_old, ref_text_processed_old = None, None
 
 # --- CÁC HÀM XỬ LÝ LOGIC ---
-
 @contextlib.contextmanager
-def suppress_outputs(target_path):
+def suppress_and_manage_path(target_path):
     original_stdout, original_stderr = sys.stdout, sys.stderr
     sys.path.insert(0, target_path)
     try:
@@ -71,21 +72,27 @@ def suppress_outputs(target_path):
             yield
     finally:
         sys.stdout, sys.stderr = original_stdout, original_stderr
-        sys.path.pop(0)
+        if sys.path and sys.path[0] == target_path:
+            sys.path.pop(0)
 
 @spaces.GPU
 def load_and_prepare_model(selected_display_name, progress=gr.Progress()):
+    # <<< SỬA LỖI QUAN TRỌNG: Dọn dẹp module cache >>>
+    print("🧹 Dọn dẹp các module F5-TTS cũ khỏi bộ nhớ cache...")
+    modules_to_remove = [k for k in sys.modules if k.startswith('f5_tts') or k.startswith('f5tts_wrapper')]
+    for module_name in modules_to_remove:
+        del sys.modules[module_name]
+    print(f"✅ Đã dọn dẹp {len(modules_to_remove)} module.")
+
     progress(0, desc="Đang tìm thông tin model...")
-    global tts_instance, MODEL_TYPE, ref_audio_path_old, ref_text_processed_old
+    global tts_instance, MODEL_TYPE, ref_audio_path_old, ref_text_processed_old, last_processed_source_path_old
 
     if selected_display_name == "(Chưa chọn model)":
-        tts_instance = None
-        MODEL_TYPE = None
+        tts_instance, MODEL_TYPE = None, None
         return "Vui lòng chọn một model để bắt đầu.", None, "", gr.update(visible=False)
 
-    tts_instance = None
-    MODEL_TYPE = None
-    ref_audio_path_old, ref_text_processed_old = None, None
+    tts_instance, MODEL_TYPE = None, None
+    ref_audio_path_old, ref_text_processed_old, last_processed_source_path_old = None, None, None
     torch.cuda.empty_cache()
 
     try:
@@ -94,15 +101,33 @@ def load_and_prepare_model(selected_display_name, progress=gr.Progress()):
         
         MODEL_TYPE = model_info['type']
         
-        progress(0.1, desc="Đang tải file từ Hugging Face Hub...")
-        ckpt_path = str(cached_path(f"hf://{model_info['repo']}/{model_info['model_file']}"))
-        vocab_path = str(cached_path(f"hf://{model_info['repo']}/{model_info['vocab_file']}"))
+        model_dir = os.path.join(MODELS_LOCAL_DIR, model_key)
+        os.makedirs(model_dir, exist_ok=True)
+
+        def download_if_needed(file_key, file_desc):
+            local_path = os.path.join(model_dir, os.path.basename(model_info[file_key]))
+            if os.path.exists(local_path):
+                print(f"✅ Đã tìm thấy {file_desc} cục bộ tại: {local_path}")
+                return local_path
+            else:
+                # <<< SỬA LỖI 2: Sửa lại log cho chính xác >>>
+                print(f"⬇️ {file_desc} chưa tồn tại, đang tải từ Hugging Face Hub...")
+                progress(0.1, desc=f"Đang tải {file_desc}...")
+                # <<< SỬA LỖI 1: Xóa tham số `local_dir_use_symlinks` >>>
+                return hf_hub_download(
+                    repo_id=model_info['repo'],
+                    filename=model_info[file_key],
+                    local_dir=model_dir
+                )
+        
+        ckpt_path = download_if_needed('model_file', 'checkpoint')
+        vocab_path = download_if_needed('vocab_file', 'file vocabulary')
         
         progress(0.5, desc=f"Đang khởi tạo model {selected_display_name}...")
         
         if MODEL_TYPE == 'old':
             print("Đang tải model theo kiến trúc F5-TTS Base...")
-            with suppress_outputs(PATH_TO_OLD_F5_REPO):
+            with suppress_and_manage_path(PATH_TO_OLD_F5_REPO):
                 from f5_tts.model import DiT
                 from f5_tts.infer.utils_infer import load_vocoder, load_model
                 vocoder = load_vocoder()
@@ -114,7 +139,7 @@ def load_and_prepare_model(selected_display_name, progress=gr.Progress()):
                 tts_instance = {"model": model, "vocoder": vocoder}
         elif MODEL_TYPE == 'new':
             print(f"Đang tải model với các tham số: {model_info.get('init_params', {})}")
-            with suppress_outputs(PATH_TO_NEW_F5_REPO):
+            with suppress_and_manage_path(PATH_TO_NEW_F5_REPO):
                 from f5tts_wrapper import F5TTSWrapper
                 from safetensors.torch import load_file
                 init_params = model_info.get('init_params', {})
@@ -138,19 +163,23 @@ def handle_preprocess(audio_path, text, clip_short, progress):
     progress(0, desc="Đang xử lý giọng mẫu...")
     gr.Info("Đã nhận audio mẫu. Bắt đầu xử lý...")
     
+    global last_processed_source_path_old, ref_audio_path_old, ref_text_processed_old
+    
+    processed_path, transcribed_text = "", ""
     if MODEL_TYPE == 'new':
-        with suppress_outputs(PATH_TO_NEW_F5_REPO):
+        with suppress_and_manage_path(PATH_TO_NEW_F5_REPO):
             processed_path, transcribed_text = tts_instance.preprocess_reference(
                 ref_audio_path=audio_path, ref_text=text, clip_short=clip_short
             )
     else:
-        global ref_audio_path_old, ref_text_processed_old
-        with suppress_outputs(PATH_TO_OLD_F5_REPO):
+        with suppress_and_manage_path(PATH_TO_OLD_F5_REPO):
             from f5_tts.infer.utils_infer import preprocess_ref_audio_text
             processed_path, transcribed_text = preprocess_ref_audio_text(audio_path, text, clip_short=clip_short)
             ref_audio_path_old = processed_path
             ref_text_processed_old = transcribed_text
     
+    last_processed_source_path_old = audio_path
+
     progress(1, desc="Xử lý giọng mẫu hoàn tất!")
     gr.Info("Xử lý giọng mẫu hoàn tất!")
     print(f"Xử lý giọng mẫu hoàn tất.\n Đường dẫn: {processed_path},\n Văn bản của giọng mẫu: '{transcribed_text}'")
@@ -158,8 +187,7 @@ def handle_preprocess(audio_path, text, clip_short, progress):
 
 @spaces.GPU
 def select_sample(sample_name, progress=gr.Progress()):
-    if tts_instance is None:
-        raise gr.Error("Vui lòng chọn và tải một model trước khi chọn giọng mẫu.")
+    if tts_instance is None: raise gr.Error("Vui lòng chọn và tải một model trước khi chọn giọng mẫu.")
     if not sample_name or sample_name == sample_names[0]: return None, ""
     sample_data = sample_lookup[sample_name]
     audio_path = os.path.join(SAMPLES_DIR, sample_data['audio_path'])
@@ -167,8 +195,7 @@ def select_sample(sample_name, progress=gr.Progress()):
 
 @spaces.GPU
 def process_manual_upload(ref_audio_orig, progress=gr.Progress()):
-    if tts_instance is None:
-        raise gr.Error("Vui lòng chọn và tải một model trước khi tải lên giọng mẫu.")
+    if tts_instance is None: raise gr.Error("Vui lòng chọn và tải một model trước khi tải lên giọng mẫu.")
     if not ref_audio_orig: return None, "", sample_names[0]
     processed_path, transcribed_text = handle_preprocess(ref_audio_orig, "", clip_short=True, progress=progress)
     return processed_path, transcribed_text, sample_names[0]
@@ -176,32 +203,49 @@ def process_manual_upload(ref_audio_orig, progress=gr.Progress()):
 @spaces.GPU
 def infer_tts(ref_audio_path, ref_text_from_ui, gen_text, speed, cfg_strength, nfe_step, output_path_from_ui, output_volume, pause_duration, progress=gr.Progress()):
     if tts_instance is None: raise gr.Error("Lỗi: Vui lòng chọn và tải một model trước khi tạo giọng nói.")
-    is_ready = (tts_instance.ref_audio_processed is not None) if MODEL_TYPE == 'new' else (ref_audio_path_old is not None)
-    if not is_ready: raise gr.Error("Lỗi: Vui lòng chọn hoặc tải lên một giọng mẫu trước khi tạo giọng nói.")
-    if not gen_text.strip(): raise gr.Error("Vui lòng nhập nội dung văn bản.")
     
     try:
         text_from_ui = ref_text_from_ui.strip()
-        
+        needs_reprocessing = False
+        reprocessing_reason = ""
+
         if MODEL_TYPE == 'new':
+            if tts_instance.ref_audio_processed is None:
+                raise gr.Error("Lỗi: Vui lòng chọn hoặc tải lên một giọng mẫu trước.")
             if text_from_ui and text_from_ui != tts_instance.ref_text:
+                needs_reprocessing = True
+                reprocessing_reason = "Văn bản của giọng mẫu (new) đã bị sửa đổi."
+            if needs_reprocessing:
+                print(f"Cần xử lý lại giọng mẫu: {reprocessing_reason}")
                 handle_preprocess(tts_instance.last_processed_audio_path, text_from_ui, clip_short=False, progress=progress)
-        else:
-            if text_from_ui and text_from_ui != ref_text_processed_old:
-                handle_preprocess(ref_audio_path, text_from_ui, clip_short=False, progress=progress)
-        
+        else: # Model 'old'
+            if ref_audio_path_old is None:
+                raise gr.Error("Lỗi: Vui lòng chọn hoặc tải lên một giọng mẫu trước.")
+            if ref_audio_path != last_processed_source_path_old:
+                needs_reprocessing = True
+                reprocessing_reason = "File audio mẫu (old) đã được thay đổi."
+            elif text_from_ui and text_from_ui != ref_text_processed_old:
+                needs_reprocessing = True
+                reprocessing_reason = "Văn bản của giọng mẫu (old) đã bị sửa đổi."
+            if needs_reprocessing:
+                print(f"Cần xử lý lại giọng mẫu: {reprocessing_reason}")
+                handle_preprocess(ref_audio_path, text_from_ui, clip_short=True, progress=progress)
+
+        if not needs_reprocessing:
+             print("Sử dụng giọng mẫu đã được cache.")
+
         print(f"Bắt đầu tạo audio cho văn bản...")
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
             tmp_path = tmp_wav.name
 
         spectrogram_path = None
         if MODEL_TYPE == 'new':
-            with suppress_outputs(PATH_TO_NEW_F5_REPO):
+            with suppress_and_manage_path(PATH_TO_NEW_F5_REPO):
                 from vinorm import TTSnorm
                 final_text = TTSnorm(gen_text)
                 tts_instance.generate(text=final_text, output_path=tmp_path, nfe_step=nfe_step, cfg_strength=cfg_strength, speed=speed, progress_callback=progress, target_rms=output_volume, cross_fade_duration=pause_duration)
         else: 
-            with suppress_outputs(PATH_TO_OLD_F5_REPO):
+            with suppress_and_manage_path(PATH_TO_OLD_F5_REPO):
                 from vinorm import TTSnorm
                 from f5_tts.infer.utils_infer import infer_process, save_spectrogram
                 final_wave, final_sr, spectrogram = infer_process(ref_audio=ref_audio_path_old, ref_text=ref_text_processed_old, gen_text=TTSnorm(gen_text), model_obj=tts_instance['model'], vocoder=tts_instance['vocoder'], speed=speed, nfe_step=nfe_step, cfg_strength=cfg_strength, target_rms=output_volume, cross_fade_duration=pause_duration, progress=progress)
