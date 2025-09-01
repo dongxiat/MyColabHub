@@ -36,7 +36,6 @@ A Collection of Google Colab Notebooks for scripts & projects
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/Sonic_Image_Audio_to_Video.ipynb)  | Audio-driven Portrait Animation with Sonic
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/wan_2_1/wan21_based_InfiniteTalk_&_MultiTalk.ipynb)  | Audio-driven Animation with InfiniteTalk & MultiTalk (Compute units Required)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/Qwen_Image/Qwen_Image_Gen_Edit.ipynb)  | Qwen-Image for Generating & Editing Images 
-
 Text-to-Speech
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/ZonosTTS.ipynb)  | TTS with ZonosTTS
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/F5-TTS-Vietnamese_Colab.ipynb)  | TTS with F5-TTS (Vietnamese models)
