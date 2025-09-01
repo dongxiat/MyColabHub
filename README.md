@@ -35,6 +35,8 @@ A Collection of Google Colab Notebooks for scripts & projects
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/wan2_2/wan22_FirstLastFrame2Video.ipynb)  | First-Last Frame to Video with Wan2.2
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/Sonic_Image_Audio_to_Video.ipynb)  | Audio-driven Portrait Animation with Sonic
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/wan_2_1/wan21_based_InfiniteTalk_&_MultiTalk.ipynb)  | Audio-driven Animation with InfiniteTalk & MultiTalk (Compute units Required)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/Qwen_Image/Qwen_Image_Gen_Edit.ipynb)  | Qwen-Image for Generating & Editing Images 
+
 Text-to-Speech
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Isi-dev/Google-Colab_Notebooks/blob/main/ZonosTTS.ipynb)  | TTS with ZonosTTS
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/F5-TTS-Vietnamese_Colab.ipynb)  | TTS with F5-TTS (Vietnamese models)
@@ -44,7 +46,7 @@ Images/Videos
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/DepthFlow_Colab.ipynb)  | Convert 2D Images to 3D Images (Immersity AI alternative)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/InstantIR_Colab.ipynb)  | Blind Image Restoration with Instant Generative Reference
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/InvSR_colab.ipynb)  | Arbitrary-steps Image Super-resolution via Diffusion Inversion (CVPR 2025) 
-[![Open In Colab](https://colab.research.google.com/drive/1MbpICKc22S6ysD32uj3ORkqg6AgZrNpx?usp=sharing)  | HYPIR: Harnessing Diffusion-Yielded Score Priors for Image Restoration
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1MbpICKc22S6ysD32uj3ORkqg6AgZrNpx?usp=sharing)  | HYPIR: Harnessing Diffusion-Yielded Score Priors for Image Restoration
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/StreamlinkColab.ipynb)  | Record livestream and save in Google Drive with StreamLink
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dongxiat/MyColabHub/blob/main/copy_folder_google_drive_to_google_drive)  | Copy Gdrive Folder to Gdrive 
 
